@@ -8,6 +8,7 @@ from app.api.v1.users import router as users_router
 from app.api.v1.addresses import router as addresses_router
 from app.api.v1.wishlist import router as wishlist_router
 from app.api.v1.orders import router as orders_router
+from app.api.v1.ai import router as ai_router
 
 __all__ = [
     "admin_router",
@@ -18,4 +19,5 @@ __all__ = [
     "addresses_router",
     "wishlist_router",
     "orders_router",
+    "ai_router",
 ]
