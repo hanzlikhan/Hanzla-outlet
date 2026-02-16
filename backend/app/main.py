@@ -15,6 +15,7 @@ from app.api.v1 import (
     products_router,
     users_router,
     wishlist_router,
+    ai_router,
 )
 from app.config import settings
 
@@ -39,6 +40,7 @@ app.include_router(admin_router, prefix="/api/v1")
 app.include_router(addresses_router, prefix="/api/v1")
 app.include_router(wishlist_router, prefix="/api/v1")
 app.include_router(orders_router, prefix="/api/v1")
+app.include_router(ai_router, prefix="/api/v1")
 
 
 @app.get("/")
