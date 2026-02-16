@@ -1,6 +1,6 @@
 /**
  * Multi-step checkout page.
- * Step 1: Select/add address
+ * Step 1: Select/add address (inline form)
  * Step 2: Payment method
  * Step 3: Review + place order
  * On success → redirect to /orders/[id]
@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Check,
@@ -18,13 +18,16 @@ import {
     CreditCard,
     Loader2,
     MapPin,
+    Plus,
     ShoppingBag,
     Wallet,
+    X,
 } from "lucide-react";
 import api from "@/lib/api";
 import { useCartStore } from "@/stores/cart-store";
 import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -55,6 +58,11 @@ const PAYMENT_METHODS = [
     { id: "easypaisa", label: "Easypaisa", icon: Wallet, desc: "Coming soon", disabled: true },
 ];
 
+const PROVINCES = [
+    "Punjab", "Sindh", "Khyber Pakhtunkhwa", "Balochistan",
+    "Islamabad Capital Territory", "Azad Kashmir", "Gilgit-Baltistan",
+];
+
 /* ------------------------------------------------------------------ */
 /* Step indicator                                                      */
 /* ------------------------------------------------------------------ */
@@ -67,16 +75,16 @@ function StepIndicator({ current }: { current: number }) {
                     <div className="flex flex-col items-center">
                         <div
                             className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition-all ${i < current
-                                    ? "bg-emerald-600 text-white"
+                                    ? "bg-gold text-black"
                                     : i === current
-                                        ? "bg-black text-white dark:bg-white dark:text-black"
-                                        : "bg-zinc-200 text-zinc-500 dark:bg-zinc-700"
+                                        ? "bg-foreground text-background"
+                                        : "bg-surface-hover text-muted"
                                 }`}
                         >
                             {i < current ? <Check className="h-5 w-5" /> : i + 1}
                         </div>
                         <span
-                            className={`mt-2 text-xs font-medium ${i <= current ? "text-black dark:text-white" : "text-zinc-400"
+                            className={`mt-2 text-xs font-medium ${i <= current ? "text-foreground" : "text-muted"
                                 }`}
                         >
                             {step}
@@ -84,13 +92,223 @@ function StepIndicator({ current }: { current: number }) {
                     </div>
                     {i < STEPS.length - 1 && (
                         <div
-                            className={`mx-3 mt-[-1rem] h-0.5 w-12 sm:w-20 ${i < current ? "bg-emerald-600" : "bg-zinc-200 dark:bg-zinc-700"
+                            className={`mx-3 mt-[-1rem] h-0.5 w-12 sm:w-20 ${i < current ? "bg-gold" : "bg-border"
                                 }`}
                         />
                     )}
                 </div>
             ))}
         </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/* Add Address Form                                                    */
+/* ------------------------------------------------------------------ */
+
+function AddAddressForm({
+    onCancel,
+    onSuccess,
+}: {
+    onCancel: () => void;
+    onSuccess: (addr: Address) => void;
+}) {
+    const queryClient = useQueryClient();
+    const [form, setForm] = useState({
+        label: "Home",
+        street: "",
+        city: "",
+        province: "Punjab",
+        postal_code: "",
+        phone: "",
+        is_default: true,
+    });
+    const [error, setError] = useState("");
+
+    const mutation = useMutation({
+        mutationFn: async () => {
+            const { data } = await api.post<Address>("/api/v1/addresses/", form);
+            return data;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ["addresses"] });
+            onSuccess(data);
+        },
+        onError: (err: any) => {
+            setError(err?.response?.data?.detail || "Failed to add address. Please try again.");
+        },
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!form.street || !form.city || !form.postal_code || !form.phone) {
+            setError("Please fill in all required fields.");
+            return;
+        }
+        setError("");
+        mutation.mutate();
+    };
+
+    const update = (field: string, value: string | boolean) =>
+        setForm((prev) => ({ ...prev, [field]: value }));
+
+    return (
+        <motion.form
+            onSubmit={handleSubmit}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="card-premium space-y-4 p-6"
+        >
+            <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold">Add New Address</h3>
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
+                >
+                    <X className="h-4 w-4" />
+                </button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+                {/* Label */}
+                <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">
+                        Label *
+                    </label>
+                    <select
+                        value={form.label}
+                        onChange={(e) => update("label", e.target.value)}
+                        className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm transition-all focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
+                    >
+                        <option>Home</option>
+                        <option>Work</option>
+                        <option>Office</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+
+                {/* Phone */}
+                <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">
+                        Phone *
+                    </label>
+                    <input
+                        type="tel"
+                        placeholder="03XX-XXXXXXX"
+                        value={form.phone}
+                        onChange={(e) => update("phone", e.target.value)}
+                        className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm transition-all placeholder:text-muted-foreground focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
+                        required
+                    />
+                </div>
+            </div>
+
+            {/* Street */}
+            <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">
+                    Street Address *
+                </label>
+                <input
+                    type="text"
+                    placeholder="House #, Street, Area"
+                    value={form.street}
+                    onChange={(e) => update("street", e.target.value)}
+                    className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm transition-all placeholder:text-muted-foreground focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
+                    required
+                />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+                {/* City */}
+                <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">
+                        City *
+                    </label>
+                    <input
+                        type="text"
+                        placeholder="Lahore"
+                        value={form.city}
+                        onChange={(e) => update("city", e.target.value)}
+                        className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm transition-all placeholder:text-muted-foreground focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
+                        required
+                    />
+                </div>
+
+                {/* Province */}
+                <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">
+                        Province *
+                    </label>
+                    <select
+                        value={form.province}
+                        onChange={(e) => update("province", e.target.value)}
+                        className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm transition-all focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
+                    >
+                        {PROVINCES.map((p) => (
+                            <option key={p}>{p}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Postal */}
+                <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">
+                        Postal Code *
+                    </label>
+                    <input
+                        type="text"
+                        placeholder="54000"
+                        value={form.postal_code}
+                        onChange={(e) => update("postal_code", e.target.value)}
+                        className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm transition-all placeholder:text-muted-foreground focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
+                        required
+                    />
+                </div>
+            </div>
+
+            {/* Default checkbox */}
+            <label className="flex cursor-pointer items-center gap-2">
+                <input
+                    type="checkbox"
+                    checked={form.is_default}
+                    onChange={(e) => update("is_default", e.target.checked)}
+                    className="h-4 w-4 rounded border-border accent-gold"
+                />
+                <span className="text-sm text-muted">Set as default address</span>
+            </label>
+
+            {/* Error */}
+            {error && (
+                <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20">{error}</p>
+            )}
+
+            {/* Submit */}
+            <div className="flex justify-end gap-3 pt-2">
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="rounded-full border border-border px-6 py-2.5 text-sm font-medium transition-colors hover:bg-surface-hover"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    disabled={mutation.isPending}
+                    className="btn-gold flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-bold disabled:opacity-50"
+                >
+                    {mutation.isPending ? (
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Saving...
+                        </>
+                    ) : (
+                        "Save Address"
+                    )}
+                </button>
+            </div>
+        </motion.form>
     );
 }
 
@@ -106,6 +324,7 @@ export default function CheckoutPage() {
     const [step, setStep] = useState(0);
     const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
     const [paymentMethod, setPaymentMethod] = useState("cod");
+    const [showAddressForm, setShowAddressForm] = useState(false);
 
     const subtotal = items.reduce((s, i) => s + (i.price || 0) * i.quantity, 0);
 
@@ -116,7 +335,7 @@ export default function CheckoutPage() {
 
     // Redirect if cart is empty
     useEffect(() => {
-        if (!authLoading && items.length === 0) router.replace("/cart");
+        if (!authLoading && items.length === 0) router.replace("/products");
     }, [authLoading, items.length, router]);
 
     // Fetch addresses
@@ -179,15 +398,40 @@ export default function CheckoutPage() {
                                 exit={{ opacity: 0, x: -30 }}
                                 className="space-y-4"
                             >
-                                <h2 className="flex items-center gap-2 text-lg font-semibold">
-                                    <MapPin className="h-5 w-5 text-emerald-600" />
-                                    Shipping Address
-                                </h2>
+                                <div className="flex items-center justify-between">
+                                    <h2 className="flex items-center gap-2 text-lg font-semibold">
+                                        <MapPin className="h-5 w-5 text-gold" />
+                                        Shipping Address
+                                    </h2>
+                                    {!showAddressForm && (
+                                        <button
+                                            onClick={() => setShowAddressForm(true)}
+                                            className="flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold transition-all hover:border-gold hover:text-gold"
+                                        >
+                                            <Plus className="h-3.5 w-3.5" />
+                                            Add New
+                                        </button>
+                                    )}
+                                </div>
 
+                                {/* Address form */}
+                                <AnimatePresence>
+                                    {showAddressForm && (
+                                        <AddAddressForm
+                                            onCancel={() => setShowAddressForm(false)}
+                                            onSuccess={(addr) => {
+                                                setShowAddressForm(false);
+                                                setSelectedAddressId(addr.id);
+                                            }}
+                                        />
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Existing addresses */}
                                 {addrLoading ? (
                                     <div className="space-y-3">
                                         {[1, 2].map((i) => (
-                                            <div key={i} className="h-20 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-700" />
+                                            <div key={i} className="h-20 animate-pulse rounded-xl bg-surface-hover" />
                                         ))}
                                     </div>
                                 ) : addresses && addresses.length > 0 ? (
@@ -197,36 +441,52 @@ export default function CheckoutPage() {
                                                 key={addr.id}
                                                 onClick={() => setSelectedAddressId(addr.id)}
                                                 className={`w-full rounded-xl border-2 p-4 text-left transition-all ${selectedAddressId === addr.id
-                                                        ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20"
-                                                        : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700"
+                                                        ? "border-gold bg-gold/5"
+                                                        : "border-border hover:border-foreground/20"
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <span className="font-semibold">{addr.label}</span>
-                                                    {addr.is_default && (
-                                                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                                                            Default
-                                                        </span>
-                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                        {addr.is_default && (
+                                                            <span className="rounded-full bg-gold/10 px-2 py-0.5 text-xs font-medium text-gold">
+                                                                Default
+                                                            </span>
+                                                        )}
+                                                        {selectedAddressId === addr.id && (
+                                                            <Check className="h-4 w-4 text-gold" />
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <p className="mt-1 text-sm text-zinc-500">
+                                                <p className="mt-1 text-sm text-muted">
                                                     {addr.street}, {addr.city}, {addr.province} {addr.postal_code}
                                                 </p>
-                                                <p className="text-sm text-zinc-400">{addr.phone}</p>
+                                                <p className="text-sm text-muted">{addr.phone}</p>
                                             </button>
                                         ))}
                                     </div>
-                                ) : (
-                                    <div className="rounded-xl border-2 border-dashed border-zinc-300 p-8 text-center dark:border-zinc-600">
-                                        <p className="text-zinc-500">No addresses found. Add one first.</p>
+                                ) : !showAddressForm ? (
+                                    <div className="rounded-xl border-2 border-dashed border-border p-8 text-center">
+                                        <MapPin className="mx-auto mb-3 h-8 w-8 text-muted" />
+                                        <p className="mb-1 font-medium">No addresses saved</p>
+                                        <p className="mb-4 text-sm text-muted">
+                                            Add a delivery address to continue
+                                        </p>
+                                        <button
+                                            onClick={() => setShowAddressForm(true)}
+                                            className="btn-gold inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-bold"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Add Address
+                                        </button>
                                     </div>
-                                )}
+                                ) : null}
 
                                 <div className="flex justify-end pt-4">
                                     <button
                                         onClick={() => setStep(1)}
                                         disabled={!selectedAddressId}
-                                        className="flex items-center gap-2 rounded-full bg-black px-8 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800 disabled:opacity-40 dark:bg-white dark:text-black"
+                                        className="btn-gold flex items-center gap-2 rounded-full px-8 py-3 text-sm font-bold disabled:opacity-40"
                                     >
                                         Continue <ChevronRight className="h-4 w-4" />
                                     </button>
@@ -244,7 +504,7 @@ export default function CheckoutPage() {
                                 className="space-y-4"
                             >
                                 <h2 className="flex items-center gap-2 text-lg font-semibold">
-                                    <CreditCard className="h-5 w-5 text-emerald-600" />
+                                    <CreditCard className="h-5 w-5 text-gold" />
                                     Payment Method
                                 </h2>
 
@@ -257,15 +517,15 @@ export default function CheckoutPage() {
                                             className={`w-full rounded-xl border-2 p-4 text-left transition-all ${pm.disabled
                                                     ? "cursor-not-allowed opacity-50"
                                                     : paymentMethod === pm.id
-                                                        ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20"
-                                                        : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700"
+                                                        ? "border-gold bg-gold/5"
+                                                        : "border-border hover:border-foreground/20"
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <pm.icon className="h-5 w-5" />
                                                 <div>
                                                     <span className="font-semibold">{pm.label}</span>
-                                                    <p className="text-xs text-zinc-500">{pm.desc}</p>
+                                                    <p className="text-xs text-muted">{pm.desc}</p>
                                                 </div>
                                             </div>
                                         </button>
@@ -275,13 +535,13 @@ export default function CheckoutPage() {
                                 <div className="flex justify-between pt-4">
                                     <button
                                         onClick={() => setStep(0)}
-                                        className="rounded-full border border-zinc-300 px-6 py-3 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-600"
+                                        className="rounded-full border border-border px-6 py-3 text-sm font-medium transition-colors hover:bg-surface-hover"
                                     >
                                         Back
                                     </button>
                                     <button
                                         onClick={() => setStep(2)}
-                                        className="flex items-center gap-2 rounded-full bg-black px-8 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800 dark:bg-white dark:text-black"
+                                        className="btn-gold flex items-center gap-2 rounded-full px-8 py-3 text-sm font-bold"
                                     >
                                         Continue <ChevronRight className="h-4 w-4" />
                                     </button>
@@ -302,22 +562,22 @@ export default function CheckoutPage() {
 
                                 {/* Address summary */}
                                 {selectedAddress && (
-                                    <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                                    <div className="card-premium p-4">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-muted">
                                             Shipping To
                                         </p>
                                         <p className="mt-1 font-medium">{selectedAddress.label}</p>
-                                        <p className="text-sm text-zinc-500">
+                                        <p className="text-sm text-muted">
                                             {selectedAddress.street}, {selectedAddress.city},{" "}
                                             {selectedAddress.province} {selectedAddress.postal_code}
                                         </p>
-                                        <p className="text-sm text-zinc-400">{selectedAddress.phone}</p>
+                                        <p className="text-sm text-muted">{selectedAddress.phone}</p>
                                     </div>
                                 )}
 
                                 {/* Payment */}
-                                <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                                <div className="card-premium p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-muted">
                                         Payment
                                     </p>
                                     <p className="mt-1 font-medium">
@@ -326,20 +586,20 @@ export default function CheckoutPage() {
                                 </div>
 
                                 {/* Items */}
-                                <div className="rounded-xl border border-zinc-200 dark:border-zinc-700">
-                                    <p className="border-b border-zinc-200 p-4 text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:border-zinc-700">
+                                <div className="card-premium overflow-hidden">
+                                    <p className="border-b border-border p-4 text-xs font-semibold uppercase tracking-wider text-muted">
                                         Items ({totalItems()})
                                     </p>
                                     {items.map((item, idx) => (
                                         <div
                                             key={idx}
-                                            className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 last:border-0 dark:border-zinc-800"
+                                            className="flex items-center justify-between border-b border-border px-4 py-3 last:border-0"
                                         >
                                             <div>
                                                 <p className="text-sm font-medium">
                                                     {item.name || `Product #${item.product_id}`}
                                                 </p>
-                                                <p className="text-xs text-zinc-500">
+                                                <p className="text-xs text-muted">
                                                     Qty: {item.quantity}
                                                     {item.size && ` · ${item.size}`}
                                                     {item.color && ` · ${item.color}`}
@@ -350,9 +610,9 @@ export default function CheckoutPage() {
                                             </span>
                                         </div>
                                     ))}
-                                    <div className="flex items-center justify-between bg-zinc-50 px-4 py-3 dark:bg-zinc-800/50">
+                                    <div className="flex items-center justify-between bg-surface-hover px-4 py-3">
                                         <span className="font-bold">Total</span>
-                                        <span className="text-lg font-bold text-emerald-600">
+                                        <span className="text-lg font-bold text-gold">
                                             PKR {subtotal.toLocaleString()}
                                         </span>
                                     </div>
@@ -370,14 +630,14 @@ export default function CheckoutPage() {
                                 <div className="flex justify-between">
                                     <button
                                         onClick={() => setStep(1)}
-                                        className="rounded-full border border-zinc-300 px-6 py-3 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-600"
+                                        className="rounded-full border border-border px-6 py-3 text-sm font-medium transition-colors hover:bg-surface-hover"
                                     >
                                         Back
                                     </button>
                                     <button
                                         onClick={() => orderMutation.mutate()}
                                         disabled={orderMutation.isPending}
-                                        className="flex items-center gap-2 rounded-full bg-emerald-600 px-8 py-3 text-sm font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-lg disabled:opacity-60"
+                                        className="btn-gold flex items-center gap-2 rounded-full px-8 py-3 text-sm font-bold disabled:opacity-60"
                                     >
                                         {orderMutation.isPending ? (
                                             <>
@@ -397,6 +657,7 @@ export default function CheckoutPage() {
                     </AnimatePresence>
                 </motion.div>
             </main>
+            <Footer />
         </>
     );
 }
