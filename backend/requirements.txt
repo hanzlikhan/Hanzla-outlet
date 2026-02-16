@@ -1,0 +1,15 @@
+# Hanzla Outlet API – Python dependencies
+# Install: pip install -r requirements.txt
+
+fastapi
+uvicorn
+sqlalchemy[asyncio]
+asyncpg
+alembic
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+pydantic[email]
+pydantic-settings
+fastapi-users[sqlalchemy]
+python-dotenv
