@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # Required: secret used for JWT signing and session security
     SECRET: str = Field(..., min_length=1)
 
+    # Optional: Gemini AI key for Stylist feature
+    GOOGLE_API_KEY: str | None = None
+
     # CORS allowed origins: in .env use comma-separated string; we expose as list
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
 
