@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import AIStylist from "../components/ai/AIStylist";
 
 /* ================================================================
    DATA
@@ -51,7 +52,7 @@ const HERO_SLIDES = [
     href: "/products?category=men",
   },
   {
-    image: "https://images.unsplash.com/photo-1539109132314-34a9c655a8c8?w=1920&q=80",
+    image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1920&q=80",
     badge: "Women's Edit",
     title: "Elegance Meets\nContemporary",
     subtitle: "Curated women's fashion blending eastern grace with western sophistication.",
@@ -147,6 +148,14 @@ const TRENDING_IMAGES = [
    ================================================================ */
 
 function AnimatedBackground() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       {/* Gradient orbs */}
@@ -582,6 +591,50 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* AI Recommendations Section */}
+        <section className="relative overflow-hidden py-24">
+          <div className="container relative z-10 mx-auto px-6">
+            <FadeInSection>
+              <div className="mb-16 text-center">
+                <div className="mb-4 flex items-center justify-center gap-2">
+                  <div className="h-px w-8 bg-gold/50" />
+                  <span className="text-xs font-bold uppercase tracking-[0.3em] text-gold">AI Powered</span>
+                  <div className="h-px w-8 bg-gold/50" />
+                </div>
+                <h2 className="font-playfair text-4xl font-bold md:text-5xl">
+                  Personalized <span className="text-gold italic">Recommendations</span>
+                </h2>
+                <p className="mx-auto mt-6 max-w-2xl text-white/50">
+                  Can't decide? Talk to our AI Stylist (bottom right) to get personalized outfit suggestions
+                  specifically curated for your style and occasion.
+                </p>
+              </div>
+            </FadeInSection>
+
+            {/* Default premium items placeholder if no AI interaction yet */}
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { name: "Velvet Majesty Suit", price: "24,500", img: "https://images.unsplash.com/photo-1594932224491-993d14d2ba70?w=800&q=80" },
+                { name: "Royal Silk Sherwani", price: "38,000", img: "https://images.unsplash.com/photo-1599012307525-45d47504bc2d?w=800&q=80" },
+                { name: "Midnight Elegance Gown", price: "18,900", img: "https://images.unsplash.com/photo-1518885335177-34bd0304b08a?w=800&q=80" },
+                { name: "Gold Chronograph Watch", price: "45,000", img: "https://images.unsplash.com/photo-1547996160-81dfa63595dd?w=800&q=80" }
+              ].map((item, i) => (
+                <FadeInSection key={i} delay={i * 0.1}>
+                  <div className="group relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 p-4 transition-all hover:bg-white/10">
+                    <div className="aspect-[3/4] overflow-hidden rounded-xl">
+                      <img src={item.img} alt={item.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                    </div>
+                    <div className="mt-4 space-y-1">
+                      <h4 className="text-sm font-bold text-white">{item.name}</h4>
+                      <p className="text-xs text-gold font-bold">PKR {item.price}</p>
+                    </div>
+                  </div>
+                </FadeInSection>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ═══════════════════════════════════════════════════
                     CTA SECTION
                    ═══════════════════════════════════════════════════ */}
@@ -625,6 +678,7 @@ export default function HomePage() {
         </section>
 
         <Footer />
+        <AIStylist />
       </div>
     </>
   );
