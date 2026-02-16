@@ -13,3 +13,4 @@ pydantic[email]
 pydantic-settings
 fastapi-users[sqlalchemy]
 python-dotenv
+google-generativeai
